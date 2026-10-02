@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.sample-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const sampleId = btn.getAttribute('data-sample');
-      state.localVideoUrl = `/static/samples/${sampleId}`;
+      state.localVideoUrl = `static/samples/${sampleId}`;
       analyzeSampleVideo(sampleId);
     });
   });
@@ -166,10 +166,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       simulateProgressSequence();
-      const res = await fetch('/api/upload-video', {
-        method: 'POST',
-        body: formData
-      });
+      let res;
+      try {
+        res = await fetch('/api/upload-video', {
+          method: 'POST',
+          body: formData
+        });
+      } catch (netErr) {
+        hideProgress();
+        alert("💡 提示：您目前瀏覽的是 GitHub Pages 線上純前端靜態展示版。\n\n因自訂影片上傳需調用後端 Python + PyTorch + YOLOv8 模型逐幀推論，GitHub 靜態伺服器無法執行 Python 後端。\n\n如需分析您自己的路況影片：\n1. 請至 GitHub 下載本專案並在本地執行 start.bat 即可一鍵啟動完整後端！\n2. 線上版本請點選下方的「示範路況」按鈕，即可直接體驗 15 秒實測之 YOLO 辨識與俯視車流動態模擬！");
+        return;
+      }
+
+      if (!res.ok) {
+        hideProgress();
+        alert("💡 提示：目前後端伺服器未連線（如在 GitHub Pages 靜態環境）。\n請點擊下方「示範路況」按鈕體驗預載入的 15 秒 YOLO 分析數據與動態俯視模擬！");
+        return;
+      }
+
       const data = await res.json();
       if (data.status === 'success') {
         finishProgress("影片分析完成！正在啟動即時 YOLO 播放器...", () => initVideoPlayerWithData(data.data, file.name));
@@ -188,13 +202,30 @@ document.addEventListener('DOMContentLoaded', () => {
     showProgress("載入路況示範影片並啟動 YOLO 視覺辨識模型...", 20);
     try {
       simulateProgressSequence();
-      const res = await fetch('/api/analyze-sample', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sample_id: sampleId })
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
+      let data = null;
+      try {
+        const res = await fetch('/api/analyze-sample', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sample_id: sampleId })
+        });
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (e) {
+        console.warn("Backend API not reachable, falling back to static precomputed dataset:", e);
+      }
+
+      // If backend is not available (e.g. GitHub Pages static hosting), fallback to static JSON
+      if (!data || data.status !== 'success') {
+        const staticJsonName = sampleId.replace('.mp4', '') + '.json';
+        const staticRes = await fetch(`static/data/${staticJsonName}`);
+        if (staticRes.ok) {
+          data = await staticRes.json();
+        }
+      }
+
+      if (data && data.status === 'success') {
         finishProgress("AI 標線與車種辨識完成！正在啟動即時 YOLO 播放器...", () => initVideoPlayerWithData(data.data, sampleId));
       } else {
         alert("分析示範影片失敗");
@@ -730,9 +761,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const res = await fetch('/api/comparison-report');
-      const json = await res.json();
-      if (json.status === 'success') {
+      let json = null;
+      try {
+        const res = await fetch('/api/comparison-report');
+        if (res.ok) {
+          json = await res.json();
+        }
+      } catch (e) {
+        console.warn("Backend report API unavailable, falling back to static json:", e);
+      }
+
+      if (!json || json.status !== 'success') {
+        const staticRes = await fetch('static/data/comparison_report.json');
+        if (staticRes.ok) {
+          json = await staticRes.json();
+        }
+      }
+
+      if (json && json.status === 'success') {
         state.cachedComparisonData = json.data;
         state.reportManager.initCharts(json.data);
       }
@@ -748,13 +794,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Pre-load default video profile from backend on page startup
+  // Pre-load default video profile (Backend API or Static Fallback)
   fetch('/api/latest-video-profile')
-    .then(r => r.json())
+    .then(r => r.ok ? r.json() : Promise.reject())
     .then(d => {
       if (d.status === 'success' && d.data) {
         state.currentVideoProfile = d.data;
       }
     })
-    .catch(() => {});
+    .catch(() => {
+      fetch('static/data/sample_rush_hour.json')
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === 'success' && d.data && d.data.video_traffic_profile) {
+            state.currentVideoProfile = d.data.video_traffic_profile;
+          }
+        })
+        .catch(() => {});
+    });
 });

@@ -1,0 +1,191 @@
+{
+  "status": "success",
+  "data": {
+    "scenarios": {
+      "baseline": {
+        "policy": "baseline",
+        "policy_name": "影片原貌還原管制 (禁行+待轉) - 依據《預設尖峰路況》",
+        "video_source": "預設尖峰路況",
+        "input_parameters": {
+          "scooter_volume": 2200,
+          "car_volume": 1400,
+          "bus_volume": 80,
+          "left_turn_ratio": 0.25,
+          "right_turn_ratio": 0.2,
+          "signal_cycle": 90
+        },
+        "metrics": {
+          "throughput_veh_hr": 3120,
+          "throughput_gain_pct": 0.0,
+          "avg_scooter_delay_s": 48.2,
+          "avg_car_delay_s": 39.5,
+          "left_turn_delay_s": 78.4,
+          "left_turn_delay_reduction_pct": 0.0,
+          "total_conflict_points": 109.2,
+          "conflict_reduction_pct": 0.0,
+          "safety_score": 42.0,
+          "lane_utilization_imbalance_pct": 68.5
+        },
+        "conflict_breakdown": {
+          "right_hook_conflicts": 42.6,
+          "wait_box_overflow_conflicts": 28.4,
+          "weaving_conflicts": 38.2
+        },
+        "lane_distribution": {
+          "lane_1_inner": {
+            "scooter_pct": 1.2,
+            "name": "內側車道"
+          },
+          "lane_2_middle": {
+            "scooter_pct": 12.5,
+            "name": "中間車道"
+          },
+          "lane_3_outer": {
+            "scooter_pct": 86.3,
+            "name": "外側慢車道"
+          }
+        }
+      },
+      "remove_lane_ban": {
+        "policy": "remove_lane_ban",
+        "policy_name": "影片改革方案一 (解除禁行機車) - 依據《預設尖峰路況》",
+        "video_source": "預設尖峰路況",
+        "input_parameters": {
+          "scooter_volume": 2200,
+          "car_volume": 1400,
+          "bus_volume": 80,
+          "left_turn_ratio": 0.25,
+          "right_turn_ratio": 0.2,
+          "signal_cycle": 90
+        },
+        "metrics": {
+          "throughput_veh_hr": 3580,
+          "throughput_gain_pct": 14.7,
+          "avg_scooter_delay_s": 34.6,
+          "avg_car_delay_s": 36.2,
+          "left_turn_delay_s": 74.0,
+          "left_turn_delay_reduction_pct": 5.6,
+          "total_conflict_points": 57.4,
+          "conflict_reduction_pct": 47.4,
+          "safety_score": 68.0,
+          "lane_utilization_imbalance_pct": 22.0
+        },
+        "conflict_breakdown": {
+          "right_hook_conflicts": 16.8,
+          "wait_box_overflow_conflicts": 26.1,
+          "weaving_conflicts": 14.5
+        },
+        "lane_distribution": {
+          "lane_1_inner": {
+            "scooter_pct": 32.0,
+            "name": "內側車道"
+          },
+          "lane_2_middle": {
+            "scooter_pct": 36.0,
+            "name": "中間車道"
+          },
+          "lane_3_outer": {
+            "scooter_pct": 32.0,
+            "name": "外側慢車道"
+          }
+        }
+      },
+      "direct_left_turn": {
+        "policy": "direct_left_turn",
+        "policy_name": "影片改革方案二 (取消強制待轉，可直接左轉) - 依據《預設尖峰路況》",
+        "video_source": "預設尖峰路況",
+        "input_parameters": {
+          "scooter_volume": 2200,
+          "car_volume": 1400,
+          "bus_volume": 80,
+          "left_turn_ratio": 0.25,
+          "right_turn_ratio": 0.2,
+          "signal_cycle": 90
+        },
+        "metrics": {
+          "throughput_veh_hr": 3450,
+          "throughput_gain_pct": 10.6,
+          "avg_scooter_delay_s": 36.8,
+          "avg_car_delay_s": 41.2,
+          "left_turn_delay_s": 28.5,
+          "left_turn_delay_reduction_pct": 63.6,
+          "total_conflict_points": 68.3,
+          "conflict_reduction_pct": 37.5,
+          "safety_score": 64.0,
+          "lane_utilization_imbalance_pct": 54.0
+        },
+        "conflict_breakdown": {
+          "right_hook_conflicts": 35.2,
+          "wait_box_overflow_conflicts": 2.1,
+          "weaving_conflicts": 31.0
+        },
+        "lane_distribution": {
+          "lane_1_inner": {
+            "scooter_pct": 1.5,
+            "name": "內側車道"
+          },
+          "lane_2_middle": {
+            "scooter_pct": 42.0,
+            "name": "中間車道"
+          },
+          "lane_3_outer": {
+            "scooter_pct": 56.5,
+            "name": "外側慢車道"
+          }
+        }
+      },
+      "full_reform": {
+        "policy": "full_reform",
+        "policy_name": "影片完全平權最佳化方案 - 依據《預設尖峰路況》",
+        "video_source": "預設尖峰路況",
+        "input_parameters": {
+          "scooter_volume": 2200,
+          "car_volume": 1400,
+          "bus_volume": 80,
+          "left_turn_ratio": 0.25,
+          "right_turn_ratio": 0.2,
+          "signal_cycle": 90
+        },
+        "metrics": {
+          "throughput_veh_hr": 4020,
+          "throughput_gain_pct": 28.8,
+          "avg_scooter_delay_s": 24.2,
+          "avg_car_delay_s": 29.8,
+          "left_turn_delay_s": 22.4,
+          "left_turn_delay_reduction_pct": 71.4,
+          "total_conflict_points": 19.1,
+          "conflict_reduction_pct": 82.5,
+          "safety_score": 92.0,
+          "lane_utilization_imbalance_pct": 14.0
+        },
+        "conflict_breakdown": {
+          "right_hook_conflicts": 8.5,
+          "wait_box_overflow_conflicts": 1.2,
+          "weaving_conflicts": 9.4
+        },
+        "lane_distribution": {
+          "lane_1_inner": {
+            "scooter_pct": 34.0,
+            "name": "內側車道"
+          },
+          "lane_2_middle": {
+            "scooter_pct": 38.0,
+            "name": "中間車道"
+          },
+          "lane_3_outer": {
+            "scooter_pct": 28.0,
+            "name": "外側慢車道"
+          }
+        }
+      }
+    },
+    "comparison_summary": {
+      "key_takeaways": [
+        "【安全面】：完全平權方案使潛在碰撞衝突點由 109.2 驟減至 19.1 (-82.5%)，大幅降低右轉關門死亡事故。",
+        "【效率面】：解除內線禁行後，外側慢車道飽和度下降 55%，路口整體通行容量提升 28.8% (4,020 輛/小時)。",
+        "【左轉延誤】：取消強制待轉使左轉平均等待時間由 78.4 秒降低至 22.4 秒，省去一個完整紅燈週期等待。",
+        "【空間平衡】：現行管制下外線擠壓 86.3% 機車形成嚴重瓶頸；改革後車流均勻分布 (內34%、中38%、外28%)。"
+      ]
+    }
+  }
+}

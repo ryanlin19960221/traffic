@@ -61,7 +61,10 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/results", StaticFiles(directory="results"), name="results")
 
 @app.get("/")
+@app.get("/index.html")
 async def get_index():
+    if os.path.exists("index.html"):
+        return FileResponse("index.html")
     index_path = os.path.join("static", "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
