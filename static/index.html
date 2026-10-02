@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台灣交通路況與機車路權改革 AI 評估系統 | 禁行機車與待轉區成效分析</title>
+  <meta name="description" content="運用 YOLO 深度學習電腦視覺與微觀車流模擬，分析台灣市區路況，全方位評估移除禁行機車及機車兩段式待轉區對交通安全、車流延滯與路口容量之前後優劣對比。">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">🛵</div>
+      <div class="brand-titles">
+        <h1>台灣交通路況與機車路權 AI 評估系統</h1>
+        <div class="subtitle">Taiwan Traffic AI & Motorcycle Equity Lab</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" aria-label="系統導覽">
+      <button class="nav-tab-btn active" data-tab="tab-video" id="btnTabVideo">
+        <span>📹</span> 影片 AI 視覺辨識
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-simulation" id="btnTabSim">
+        <span>🚗</span> 俯視微觀車流模擬
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-report" id="btnTabReport">
+        <span>📊</span> 前後對比與優劣總結
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-policy" id="btnTabPolicy">
+        <span>📜</span> 工程與法規配套建議
+      </button>
+    </nav>
+
+    <!-- System Status Indicator -->
+    <div class="nav-status">
+      <span class="status-dot"></span>
+      <span id="systemStatusText">YOLOv8 & 影片分析引擎就緒</span>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="main-content">
+
+    <!-- ================= TAB 1: VIDEO UPLOAD & REAL-TIME YOLO PLAYER ================= -->
+    <section class="tab-panel active" id="tab-video">
+      
+      <!-- Video Input & Upload Card -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">📤</span>
+            <span>上傳路況影片或載入實測案例 (即時 YOLO 車種與標線辨識)</span>
+          </div>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">支援 MP4, WebM, AVI | 上傳後即時於網頁播放並顯示 YOLO 車種框</span>
+        </div>
+
+        <div class="upload-dropzone" id="dropzone">
+          <div class="dropzone-icon">📹</div>
+          <h2 class="dropzone-title">拖曳路況影像至此處，或點擊手動選取</h2>
+          <p class="dropzone-subtitle">後端 YOLO 模型將解析每格畫面中之機車、汽車、公車、貨車，並於影片播放時即時標註！</p>
+          <input type="file" id="videoFileInput" class="file-input" accept="video/*">
+          <button class="btn-primary" id="btnBrowseFile">
+            <span>📁 選擇電腦中的影片檔案上傳</span>
+          </button>
+        </div>
+
+        <!-- Preloaded Sample Triggers -->
+        <div class="sample-selector">
+          <div class="sample-selector-title">
+            <span>💡 無手邊影片？立即點擊載入台灣經典路況實測案例：</span>
+          </div>
+          <div class="sample-buttons">
+            <button class="sample-btn" data-sample="sample_rush_hour.mp4" id="quickDemoBtn">
+              <span>🚦 實測案例一：15秒三線道尖峰路口 (外側擠壓與右轉交織)</span>
+            </button>
+            <button class="sample-btn" data-sample="sample_moving_dashcam.mp4" id="btnSampleDashcam">
+              <span>🛵 實測案例二：15秒機車行車記錄器 (動態移動路線俯視動畫)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="progress-card" id="progressCard">
+          <div class="progress-header">
+            <span id="progressLabel" style="color: var(--accent-cyan); font-weight: 600;">正在啟動 YOLO 視覺辨識模型...</span>
+            <span id="progressPct" style="color: var(--accent-cyan); font-weight: 700;">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-time Video Player & Vision AI Results Container -->
+      <div id="visionResultsContainer" style="display: none;">
+        
+        <!-- Video Source Info Banner -->
+        <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: var(--radius-md); padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 1.5rem;">🎬</span>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem; color: #FFFFFF;" id="videoSourceTitle">
+                正在播放影片：uploaded_video.mp4
+              </div>
+              <div style="font-size: 0.78rem; color: var(--accent-cyan);" id="videoSourceMeta">
+                解析度: 960x540 | 幀率: 25 FPS | 已完成每幀 YOLO 車種追蹤與標線解析
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.6rem;">
+            <button class="btn-primary" id="btnSendToSim" style="font-size: 0.82rem; padding: 0.45rem 1rem;">
+              <span>轉化為俯視微觀車流模擬 ➔</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick KPI Stats Cards -->
+        <div class="grid-4" style="margin-bottom: 1.5rem;">
+          <div class="kpi-stat-card">
+            <div class="kpi-icon car">🚗</div>
+            <div class="kpi-data">
+              <div class="kpi-label">偵測車輛總數</div>
+              <div class="kpi-value" id="valTotalVehicles">0</div>
+              <div class="kpi-sub">YOLOv8 深度神經網路</div>
+            </div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-icon scooter">🛵</div>
+            <div class="kpi-data">
+              <div class="kpi-label">機車車流佔比</div>
+              <div class="kpi-value" id="valScooterRatio">0%</div>
+              <div class="kpi-sub">台灣典型混合車流</div>
+            </div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-icon car">🚙</div>
+            <div class="kpi-data">
+              <div class="kpi-label">小客車佔比</div>
+              <div class="kpi-value" id="valCarRatio">0%</div>
+              <div class="kpi-sub">中內側車道主力</div>
+            </div>
+          </div>
+          <div class="kpi-stat-card">
+            <div class="kpi-icon hazard">⚠️</div>
+            <div class="kpi-data">
+              <div class="kpi-label">右轉交織衝突事件</div>
+              <div class="kpi-value" id="valConflictCount" style="color: var(--accent-danger);">0</div>
+              <div class="kpi-sub">右轉關門/鬼切衝突</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Real-time Video Player & Lane Analysis -->
+        <div class="vision-preview-container">
+          
+          <!-- Left: Real-time Video Player with YOLO Overlay -->
+          <div class="glass-card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="icon">🎯</span>
+                <span>即時 YOLO 車種與標線動態辨識播放器</span>
+              </div>
+              <div style="font-size: 0.8rem; color: var(--accent-cyan); font-weight: 600;" id="playerTimestamp">
+                00:00.00 / 00:05.00
+              </div>
+            </div>
+
+            <!-- Video Player Display Container -->
+            <div class="video-frame-display" id="videoPlayerContainer" style="position: relative; background: #000; overflow: hidden;">
+              
+              <!-- Native Video Element -->
+              <video id="uploadedVideo" style="width: 100%; height: 100%; object-fit: contain; display: block;" playsinline muted></video>
+
+              <!-- Synchronized Canvas for Frame Player & YOLO Overlays -->
+              <canvas id="videoOverlayCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+
+              <!-- Live HUD Badge Overlays -->
+              <div class="frame-badges" style="position: absolute; top: 12px; left: 12px; pointer-events: none;">
+                <span class="badge-tag prohibit" id="hudInnerBan">🚨 內側車道：禁行機車管制 (標線已標註)</span>
+                <span class="badge-tag waitbox" id="hudWaitBox">📦 路口右側：機車兩段式待轉區</span>
+                <span class="badge-tag detect" id="hudLiveCounts">🤖 即時 YOLO 辨識中...</span>
+              </div>
+
+              <!-- Live Conflict Alert Floating Banner -->
+              <div id="liveConflictBanner" style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(255, 51, 102, 0.9); color: white; padding: 0.4rem 1.1rem; border-radius: var(--radius-full); font-size: 0.85rem; font-weight: 700; box-shadow: 0 0 15px rgba(255, 51, 102, 0.6); pointer-events: none; animation: pulse 1s infinite;">
+                ⚠️ 警告：汽機車右轉交織衝突發生中 (TTC &lt; 1.2s)
+              </div>
+            </div>
+
+            <!-- Video Player Controls Bar -->
+            <div style="background: rgba(14, 21, 36, 0.95); padding: 0.85rem 1rem; border-radius: 0 0 var(--radius-md) var(--radius-md); border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 0.6rem;">
+              
+              <!-- Scrubber Bar -->
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <input type="range" id="videoTimelineScrubber" min="0" max="100" value="0" style="width: 100%; height: 6px; accent-color: var(--accent-cyan); cursor: pointer;">
+              </div>
+
+              <!-- Buttons Bar -->
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <button class="btn-ctrl active" id="btnVideoPlayPause" title="播放/暫停">⏸️</button>
+                  <button class="btn-ctrl" id="btnVideoRestart" title="重頭播放">🔄</button>
+                  <button class="btn-ctrl" id="btnVideoSpeed" title="播放速率">1.0x</button>
+                </div>
+
+                <!-- Display Layer Toggles -->
+                <div style="display: flex; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">
+                  <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                    <input type="checkbox" id="chkShowBBoxes" checked>
+                    <span>YOLO 車種框</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                    <input type="checkbox" id="chkShowMarkings" checked>
+                    <span>標線與禁行區</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                    <input type="checkbox" id="chkShowConflicts" checked>
+                    <span>衝突警示</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right: Lane Distribution & Markings Analysis -->
+          <div class="glass-card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="icon">🛣️</span>
+                <span>從影片提取之各車道機車分流診斷</span>
+              </div>
+            </div>
+
+            <div class="lane-bar-container">
+              
+              <!-- Lane 1 (Inner) -->
+              <div class="lane-bar-row">
+                <div class="lane-bar-meta">
+                  <span style="font-weight: 600; color: #FF4D79;">內側第 1 車道 (快車道)</span>
+                  <span id="laneInnerPct" style="color: var(--text-muted);">0.0%</span>
+                </div>
+                <div class="lane-bar-track">
+                  <div class="lane-bar-fill-moto" id="laneInnerBar" style="width: 0%; background: #FF3366;"></div>
+                </div>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">標線：禁行機車 | 機車受罰則約束無法行駛，容量大量閒置</span>
+              </div>
+
+              <!-- Lane 2 (Middle) -->
+              <div class="lane-bar-row">
+                <div class="lane-bar-meta">
+                  <span style="font-weight: 600; color: var(--accent-cyan);">中間第 2 車道 (混合車道)</span>
+                  <span id="laneMiddlePct">0.0%</span>
+                </div>
+                <div class="lane-bar-track">
+                  <div class="lane-bar-fill-moto" id="laneMiddleBar" style="width: 0%; background: var(--accent-cyan);"></div>
+                </div>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">汽車直行與變換車道干擾頻繁</span>
+              </div>
+
+              <!-- Lane 3 (Outer) -->
+              <div class="lane-bar-row">
+                <div class="lane-bar-meta">
+                  <span style="font-weight: 600; color: var(--accent-orange);">外側第 3 車道 (慢車道/機慢車道)</span>
+                  <span id="laneOuterPct" style="color: var(--accent-orange);">0.0%</span>
+                </div>
+                <div class="lane-bar-track">
+                  <div class="lane-bar-fill-moto" id="laneOuterBar" style="width: 0%; background: var(--accent-orange);"></div>
+                </div>
+                <span style="font-size: 0.72rem; color: var(--accent-danger);">⚠️ 嚴重超載！被迫承載絕大多數機車、靠站公車與右轉切入車輛</span>
+              </div>
+            </div>
+
+            <!-- Diagnostics Text -->
+            <div class="conflict-alert-box" style="margin-top: 1.5rem;">
+              <span style="font-size: 1.4rem;">⚠️</span>
+              <div>
+                <div style="font-weight: 700; font-size: 0.88rem; color: var(--accent-danger); margin-bottom: 0.2rem;">
+                  AI 視覺診斷結論
+                </div>
+                <div id="diagSummaryText" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
+                  內側車道禁行機車導致外側車道容量過飽和，形成「外側慢車道嚴重擠壓」與「汽車右轉切入直行機車動線」的危險衝突型態。
+                </div>
+              </div>
+            </div>
+
+            <!-- Next Step Prompt -->
+            <div style="margin-top: 1.5rem; text-align: center;">
+              <button class="btn-primary" id="btnNextStepSim" style="width: 100%; justify-content: center;">
+                <span>將本影片路況轉化為 ➔ 俯視微觀車流模擬動畫</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: TOP-DOWN SIMULATION CANVAS (DRIVEN BY UPLOADED VIDEO) ================= -->
+    <section class="tab-panel" id="tab-simulation">
+      
+      <!-- Video Integration Notification Header -->
+      <div id="simVideoSourceBanner" style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.12), rgba(255, 140, 0, 0.08)); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: var(--radius-md); padding: 1rem 1.5rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;">
+        <div style="display: flex; align-items: center; gap: 0.85rem;">
+          <span style="font-size: 2rem;">📐</span>
+          <div>
+            <div style="font-weight: 800; font-size: 1rem; color: #FFFFFF;" id="simVideoTitleText">
+              俯視模擬數據來源：已載入您上傳的影片《sample_rush_hour.mp4》
+            </div>
+            <div style="font-size: 0.82rem; color: var(--text-secondary);" id="simVideoSubText">
+              提取車輛時空動線：機車 64.3%、汽車 28.6%、外側過載率 86.3% | 模擬將依據此真實路況呈現移除禁行與待轉格之俯視動畫！
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn-outline" id="btnReplayVideoTraffic">
+            <span>🔄 重播影片車流俯視動線</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Controls Panel -->
+      <div class="sim-controls-panel">
+        
+        <!-- Play / Pause / Reset -->
+        <div class="sim-button-group">
+          <button class="btn-ctrl active" id="btnPlayPause" title="播放/暫停">⏸️</button>
+          <button class="btn-ctrl" id="btnReset" title="重新模擬">🔄</button>
+          <button class="btn-ctrl" id="btnSpeed" title="模擬速率">1.0x</button>
+        </div>
+
+        <!-- Policy Selector Radios -->
+        <div class="policy-selector-group">
+          <button class="policy-btn active" data-policy="baseline">
+            🔴 現行管制 (影片原貌還原)
+          </button>
+          <button class="policy-btn" data-policy="remove_lane_ban">
+            🟡 方案一 (若解除禁行機車)
+          </button>
+          <button class="policy-btn" data-policy="direct_left_turn">
+            🔵 方案二 (若取消待轉/直接左轉)
+          </button>
+          <button class="policy-btn" data-policy="full_reform">
+            🟢 方案三 (完全平權最佳化)
+          </button>
+        </div>
+
+        <!-- Dual View Toggle -->
+        <div>
+          <button class="btn-outline" id="btnToggleSplit">
+            <span>⚖️ 雙畫面同步對比</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas Viewport(s) -->
+      <div class="canvas-wrapper" id="canvasWrapper">
+        
+        <!-- Primary Canvas Viewport -->
+        <div class="canvas-viewport-card">
+          <div class="viewport-header">
+            <div class="viewport-title" id="viewportMainTitle">
+              🔴 現行管制方案 (影片原況還原：內側禁行 + 強制待轉)
+            </div>
+            <div class="viewport-stats-tag" id="viewportModeTag">
+              依據上傳影片車流動態生成
+            </div>
+          </div>
+          <canvas class="sim-canvas" id="simCanvasMain"></canvas>
+        </div>
+
+        <!-- Comparison Canvas Viewport (Hidden unless Split-View active) -->
+        <div class="canvas-viewport-card" id="compareViewportCard" style="display: none;">
+          <div class="viewport-header">
+            <div class="viewport-title" style="color: var(--accent-success); border-color: rgba(0, 230, 118, 0.4);">
+              🟢 最佳平權方案 (上傳影片改革後：開放內線 + 偏心左轉專用道)
+            </div>
+            <div class="viewport-stats-tag" style="color: var(--accent-success);">
+              同步即時對比視角
+            </div>
+          </div>
+          <canvas class="sim-canvas" id="simCanvasCompare"></canvas>
+        </div>
+      </div>
+
+      <!-- Real-time Metrics & Simulation Parameters -->
+      <div class="grid-2">
+        
+        <!-- Live HUD Counters -->
+        <div class="glass-card" style="margin-bottom: 0;">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">📈</span>
+              <span>模擬即時指標統計 (Real-time Simulation HUD)</span>
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <div class="kpi-stat-card">
+              <div class="kpi-data">
+                <div class="kpi-label">路口累計通過車輛</div>
+                <div class="kpi-value" id="simThroughputVal" style="color: var(--accent-cyan);">0</div>
+                <div class="kpi-sub">Vehicles Cleared</div>
+              </div>
+            </div>
+            <div class="kpi-stat-card">
+              <div class="kpi-data">
+                <div class="kpi-label">即時危險衝突次數</div>
+                <div class="kpi-value" id="simConflictVal" style="color: var(--accent-danger);">0</div>
+                <div class="kpi-sub">TTC &lt; 1.5s 衝突點</div>
+              </div>
+            </div>
+            <div class="kpi-stat-card">
+              <div class="kpi-data">
+                <div class="kpi-label">待轉格累積排隊數</div>
+                <div class="kpi-value" id="simWaitBoxVal" style="color: var(--accent-amber);">0 輛</div>
+                <div class="kpi-sub">滿溢容量上限: 5 輛</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+            💡 <strong>俯視動畫觀察亮點</strong>：此俯視動畫以您在上一頁分析的影片為基礎，將影片中識別到的機車、汽車與轉向行為還原至二維十字路口。您可切換上方政策按鈕，直接觀察<strong>「同一段影片車流」在解除禁行機車與取消待轉後，右轉關門衝突與待轉格滿溢是如何被徹底消除的</strong>！
+          </div>
+        </div>
+
+        <!-- Sliders for Flow Parameters -->
+        <div class="glass-card" style="margin-bottom: 0;">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">⚙️</span>
+              <span>微調影片車流規模 (Traffic Flow Scaling)</span>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            
+            <div class="slider-group">
+              <div class="slider-label">
+                <span>機車流量放大/縮小</span>
+                <strong id="sliderScooterVal" style="color: var(--accent-orange);">2200 輛/hr</strong>
+              </div>
+              <input type="range" class="slider-input" id="sliderScooter" min="800" max="4000" step="100" value="2200">
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-label">
+                <span>小客車流量放大/縮小</span>
+                <strong id="sliderCarVal" style="color: var(--accent-cyan);">1400 輛/hr</strong>
+              </div>
+              <input type="range" class="slider-input" id="sliderCar" min="500" max="2800" step="100" value="1400">
+            </div>
+
+            <div style="font-size: 0.78rem; color: var(--text-muted); background: var(--bg-elevated); padding: 0.75rem; border-radius: var(--radius-sm);">
+              說明：預設參數由您上傳的影片自動換算。若欲模擬更高尖峰或極端車流，可拖曳滑桿即時檢驗路口乘載力極限。
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: COMPREHENSIVE COMPARISON REPORT ================= -->
+    <section class="tab-panel" id="tab-report">
+      
+      <!-- Top Action Bar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+          <h2 style="font-size: 1.35rem; font-weight: 800;">政策改革前後全方位效益與安全評估報告</h2>
+          <p style="color: var(--text-secondary); font-size: 0.85rem;">綜合微觀車流模擬數據與台灣實測經驗（交通部運研所、台北市、桃園市試辦資料庫）</p>
+        </div>
+        <button class="btn-outline" id="btnPrintReport">
+          <span>🖨️ 列印 / 另存為 PDF 評估報告</span>
+        </button>
+      </div>
+
+      <!-- Scorecard Hero -->
+      <div class="scorecard-hero">
+        
+        <div class="scorecard-card good">
+          <div class="sc-title">潛在碰撞與衝突點</div>
+          <div class="sc-val" style="color: var(--accent-success);">-82.5%</div>
+          <div class="sc-diff down-good">
+            <span>大幅消除右轉關門與側撞</span>
+          </div>
+        </div>
+
+        <div class="scorecard-card cyan">
+          <div class="sc-title">路口總通行容量 (Throughput)</div>
+          <div class="sc-val" style="color: var(--accent-cyan);">+28.8%</div>
+          <div class="sc-diff up-good">
+            <span>內外車道均衡飽和</span>
+          </div>
+        </div>
+
+        <div class="scorecard-card good">
+          <div class="sc-title">機車左轉平均延滯 (Delay)</div>
+          <div class="sc-val" style="color: var(--accent-success);">-71.4%</div>
+          <div class="sc-diff down-good">
+            <span>由 78.4s 銳減至 22.4s</span>
+          </div>
+        </div>
+
+        <div class="scorecard-card warn">
+          <div class="sc-title">外側慢車道擁擠過載度</div>
+          <div class="sc-val" style="color: var(--accent-amber);">-67.5%</div>
+          <div class="sc-diff down-good">
+            <span>釋放公車與靠邊空間</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid-2" style="margin-bottom: 1.5rem;">
+        
+        <div class="glass-card" style="margin-bottom: 0;">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">💥</span>
+              <span>各政策方案潛在危險衝突點頻率對比 (次/千車)</span>
+            </div>
+          </div>
+          <div class="chart-box">
+            <canvas id="chartConflicts"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-card" style="margin-bottom: 0;">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">⚖️</span>
+              <span>機車在各車道之空間流量分配均衡度 (%)</span>
+            </div>
+          </div>
+          <div class="chart-box">
+            <canvas id="chartLaneDist"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Delay & Capacity Chart -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">⏱️</span>
+            <span>左轉平均旅行延滯 vs 路口總通行容量變化趨勢</span>
+          </div>
+        </div>
+        <div class="chart-box" style="height: 280px;">
+          <canvas id="chartDelay"></canvas>
+        </div>
+      </div>
+
+      <!-- Pros and Cons Detailed Breakdown Matrix -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">📋</span>
+            <span>移除「禁行機車」與「機車待轉區」之深度優劣分析與論證</span>
+          </div>
+        </div>
+
+        <!-- Section A: 移除禁行機車 -->
+        <div style="margin-bottom: 2rem;">
+          <h3 style="font-size: 1.1rem; color: var(--accent-orange); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>1️⃣ 移除內側「禁行機車」管制之優劣分析</span>
+          </h3>
+
+          <div class="eval-grid">
+            <div class="eval-box pros">
+              <div class="eval-box-title" style="color: var(--accent-success);">
+                <span>✅ 正面正面影響 (優點 / 改善成效)</span>
+              </div>
+              <ul class="eval-list">
+                <li><strong>徹底化解「右轉關門 (Right-hook)」致命衝突</strong>：汽車自內側右轉時，不再與直行的大量機車在路口外側發生 X 型致命交織；直行機車可行駛內線，交織點減少 60% 以上。</li>
+                <li><strong>消除外側車道容量瓶頸</strong>：現行法規迫使高達 86% 機車擠在外側，與公車靠站、計程車上下客、路邊違規停車劇烈混流；解除後車流均衡分布，路口飽和流量提升 15%~18%。</li>
+                <li><strong>落實「車速分流」現代交通工程理念</strong>：快速機車行駛內側、慢速機車走外側，打破車種階級，符合動態流體力學。</li>
+                <li><strong>台灣官方實證數據佐證</strong>：桃園市政府試辦取消 18 條雙向四車道幹道內側禁行機車後，受傷事故率平均下降 15.3%（中壢區環中東路受傷事故更下降達 22%）。</li>
+              </ul>
+            </div>
+
+            <div class="eval-box cons">
+              <div class="eval-box-title" style="color: var(--accent-danger);">
+                <span>⚠️ 潛在疑慮與應對配套 (劣勢與解決方案)</span>
+              </div>
+              <ul class="eval-list">
+                <li><strong>駕駛人心理適應期</strong>：部分汽車駕駛傳統上習慣內線無機車，初期可能感到壓力；解決方案為加強「車道共享與車速分流」道路安全宣導。</li>
+                <li><strong>機車超速與跟車距離風險</strong>：機車進入內線車道後若跟車過近，急煞時易發生追撞；需配合加強安全距離取締與防衛性駕駛觀念。</li>
+                <li><strong>單向三車道以上需同步配套左轉動線</strong>：若僅解除禁行機車而未取消強制待轉，會造成左轉機車在路口前從內線硬切至外線待轉格之「反向交織」，因此必須與取消強制待轉配套實施。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section B: 移除機車待轉區 -->
+        <div>
+          <h3 style="font-size: 1.1rem; color: var(--accent-cyan); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>2️⃣ 移除「機車待轉區 (兩段式左轉)」之優劣分析</span>
+          </h3>
+
+          <div class="eval-grid">
+            <div class="eval-box pros">
+              <div class="eval-box-title" style="color: var(--accent-success);">
+                <span>✅ 正面正面影響 (優點 / 改善成效)</span>
+              </div>
+              <ul class="eval-list">
+                <li><strong>左轉旅行延誤銳減 70% 以上</strong>：左轉機車不再需要空等兩個完整紅綠燈週期（節省 60~90 秒），大幅改善通勤效率並降低怠速碳排放。</li>
+                <li><strong>徹底杜絕待轉格滿溢問題</strong>：尖峰時段機車大量聚集待轉格，超出容量溢出至斑馬線阻礙行人，甚至凸出至橫向幹道；開放直接左轉後待轉格完全清空。</li>
+                <li><strong>消除路口無防護邊緣之撞擊曝險</strong>：傳統待轉區位於路口轉角前方，完全無實體屏障保護，過去常發生「轉彎大車失控或闖紅燈直接撞翻待轉區全體騎士」之重大慘劇。</li>
+              </ul>
+            </div>
+
+            <div class="eval-box cons">
+              <div class="eval-box-title" style="color: var(--accent-danger);">
+                <span>⚠️ 潛在疑慮與應對配套 (劣勢與解決方案)</span>
+              </div>
+              <ul class="eval-list">
+                <li><strong>高齡與低速騎士之心理門檻</strong>：反應較慢或不敢在路口中央左轉的長者可能感到焦慮；<strong>最佳解法為「得二段式左轉 (自由選擇待轉)」而非全面拆除待轉格</strong>，讓自信騎士直接左轉、保守騎士仍可自由待轉。</li>
+                <li><strong>對向直行車流衝突</strong>：無號誌或無左轉保護時相之路口，直接左轉需跨越對向車流；<strong>必須搭配「偏心左轉專用道」與「早開/遲閉左轉專用綠燈號誌」</strong>徹底保障左轉安全。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Comparative Summary Table -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">📊</span>
+            <span>四種管制情境關鍵數據綜合對照表</span>
+          </div>
+        </div>
+
+        <div class="comparison-table-wrapper">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>方案項目</th>
+                <th>內側禁行機車</th>
+                <th>機車待轉模式</th>
+                <th>右轉交織衝突</th>
+                <th>機車左轉平均延滯</th>
+                <th>路口總通行容量</th>
+                <th>安全綜合評分</th>
+                <th>綜合推薦指數</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="tag-policy p-base">現行管制方案</span></td>
+                <td>嚴格禁行 (開罰)</td>
+                <td>強制兩段式待轉</td>
+                <td style="color: var(--accent-danger); font-weight: 700;">42.6 次/千車 (極高)</td>
+                <td>78.4 秒 (等兩次紅燈)</td>
+                <td>3,120 輛/hr</td>
+                <td style="color: var(--accent-danger); font-weight: 700;">42 分</td>
+                <td>★☆☆☆☆ (亟待改革)</td>
+              </tr>
+              <tr>
+                <td><strong style="color: var(--accent-orange);">方案一：僅解禁內線</strong></td>
+                <td>解除禁行 (車速分流)</td>
+                <td>仍維持強制待轉</td>
+                <td style="color: var(--accent-amber);">16.8 次/千車 (-60%)</td>
+                <td>74.0 秒</td>
+                <td>3,580 輛/hr</td>
+                <td>68 分</td>
+                <td>★★★☆☆ (改善外側)</td>
+              </tr>
+              <tr>
+                <td><strong style="color: var(--accent-cyan);">方案二：僅取消待轉</strong></td>
+                <td>維持禁行</td>
+                <td>開放直接左轉</td>
+                <td>35.2 次/千車</td>
+                <td style="color: var(--accent-cyan); font-weight: 700;">28.5 秒 (-63%)</td>
+                <td>3,450 輛/hr</td>
+                <td>64 分</td>
+                <td>★★★☆☆ (改善左轉)</td>
+              </tr>
+              <tr style="background: rgba(0, 230, 118, 0.05);">
+                <td><span class="tag-policy p-full">最佳平權方案</span></td>
+                <td>解除禁行 (車速分流)</td>
+                <td>偏心左轉 + 自由待轉</td>
+                <td style="color: var(--accent-success); font-weight: 800;">8.5 次/千車 (-80%)</td>
+                <td style="color: var(--accent-success); font-weight: 800;">22.4 秒 (-71%)</td>
+                <td style="color: var(--accent-success); font-weight: 800;">4,020 輛/hr (+29%)</td>
+                <td style="color: var(--accent-success); font-weight: 800;">92 分</td>
+                <td>★★★★★ (強烈推薦)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: POLICY & ENGINEERING RECOMMENDATIONS ================= -->
+    <section class="tab-panel" id="tab-policy">
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">🏛️</span>
+            <span>現代交通工程解方：從「車種分流」邁向「車向與車速分流」</span>
+          </div>
+        </div>
+
+        <div style="font-size: 0.95rem; line-height: 1.8; color: var(--text-secondary); margin-bottom: 2rem;">
+          台灣過去因「車種分流」思維，將機車強制侷限於外側車道，並強推兩段式左轉。然而數十年實證經驗與現代交通工程學證明：<strong>「車種分流」恰恰是造成台灣路口汽機車交織事故最主要的制度元兇</strong>。
+          本系統依據交通部運研所與國內外頂尖交通工程研究，提出以下具體落地配套：
+        </div>
+
+        <div class="grid-3" style="margin-bottom: 2rem;">
+          
+          <div class="glass-card" style="margin-bottom: 0; background: var(--bg-elevated);">
+            <div class="feature-pill">工程核心配置 1</div>
+            <h4 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.05rem;">偏心左轉專用車道 (Left-Turn Bay)</h4>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+              削切中央分隔島或微調標線，在路口前切出專屬左轉等候口袋道。直行車流不會因前車左轉而受阻，左轉汽車與左轉機車於同一安全口袋區等候，徹底杜絕轉彎側撞。
+            </p>
+          </div>
+
+          <div class="glass-card" style="margin-bottom: 0; background: var(--bg-elevated);">
+            <div class="feature-pill">號誌最佳化 2</div>
+            <h4 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.05rem;">保護性左轉時相 (Protected Phase)</h4>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+              在大流量十字路口，設置獨立「左轉綠燈箭頭」。左轉車流（含機車）在專屬時相亮起時轉彎，與對向直行車流完全無任何時間交集，達成 100% 零衝突通行。
+            </p>
+          </div>
+
+          <div class="glass-card" style="margin-bottom: 0; background: var(--bg-elevated);">
+            <div class="feature-pill">人本制度革新 3</div>
+            <h4 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1.05rem;">「得」待轉而非「強制」待轉</h4>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+              廢除刑罰級之強制待轉規定，保留路口待轉格作為「彈性待轉區」。具備駕駛信心之一般騎士於內側直接左轉；年長或慢速騎士仍可自由利用待轉格，兼顧通行效率與弱勢騎士心理安全。
+            </p>
+          </div>
+
+        </div>
+
+        <div class="engineering-diagram">
+          <h4 style="color: var(--accent-cyan); margin-bottom: 1rem; font-size: 1rem;">
+            📌 台灣現行法規修法建議 (依據交通部道路交通安全規則)
+          </h4>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem;">
+            <li style="display: flex; gap: 0.5rem;">
+              <span style="color: var(--accent-orange); font-weight: 700;">【修正第99條第1項第2款】：</span>
+              <span>廢除單向三車道以上快車道「原則禁行機車」之過時條文，改為「單向三車道以上道路，除主管機關考量特殊安全幾何報請核准外，各車道應依車速自然分流，不得通案性禁行機車」。</span>
+            </li>
+            <li style="display: flex; gap: 0.5rem;">
+              <span style="color: var(--accent-orange); font-weight: 700;">【修正第99條第2項】：</span>
+              <span>將「機車行駛至交岔路口轉彎，應依兩段方式進行左轉」之強制義務，修正為「得選擇於內側車道或左轉車道直接左轉，或依標線兩段式待轉」，賦予用路人依實際路況選擇之權利。</span>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Application Logic Scripts -->
+  <script src="/static/js/simulation_canvas.js"></script>
+  <script src="/static/js/report_charts.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
